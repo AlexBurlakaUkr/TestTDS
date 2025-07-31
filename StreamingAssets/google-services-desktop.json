@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "956202095763",
+    "project_id": "frontier-defenders",
+    "storage_bucket": "frontier-defenders.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:956202095763:android:69ee18425efd39e8376966",
+        "android_client_info": {
+          "package_name": "com.atomicplayapps.frontierdefenders"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF4KFE_RIDvXqzyFj8me-LBMafB_p91W0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
