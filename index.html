@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Unity WebGL Player | Frontier Heroes  Deck of Fate</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico" />
+    <link rel="stylesheet" href="TemplateData/style.css" />
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas
+        id="unity-canvas"
+        width="1080"
+        height="1920"
+        tabindex="-1"
+      ></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"></div>
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">Frontier Heroes  Deck of Fate</div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+      const loadingBar = document.querySelector("#unity-loading-bar");
+      const progressBarFull = document.querySelector("#unity-progress-bar-full");
+      const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      const warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        /* ... без змін ... */
+      }
+
+      const buildUrl = "Build";
+      const loaderUrl = buildUrl + "/WebGl.loader.js";
+      const config = { /* ... */ };
+
+      // мобільний meta та класи
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        /* ... без змін ... */
+      }
+
+      loadingBar.style.display = "block";
+
+      // ===== Aspect-Ratio Resize & Absolute Centering =====
+      function resizeAndCenter() {
+        const maxW = window.innerWidth;
+        const maxH = window.innerHeight;
+        const gameAspect = 1080 / 1920;
+        const screenAspect = maxW / maxH;
+        let newW, newH;
+
+        if (screenAspect > gameAspect) {
+          newH = maxH;
+          newW = newH * gameAspect;
+        } else {
+          newW = maxW;
+          newH = newW / gameAspect;
+        }
+
+        canvas.style.width  = newW + "px";
+        canvas.style.height = newH + "px";
+        // За потреби: можна оновити resolution у Unity
+      }
+      window.addEventListener("resize", resizeAndCenter);
+
+      // Завантаження Unity
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = (100 * progress) + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+          resizeAndCenter();   // центрована одразу після старту
+          fullscreenButton.onclick = () => unityInstance.SetFullscreen(1);
+        }).catch(alert);
+      };
+      document.body.appendChild(script);
+      // ===== end Aspect-Ratio Resize =====
+    </script>
+  </body>
+</html>
