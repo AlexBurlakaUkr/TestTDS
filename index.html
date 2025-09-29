@@ -6,14 +6,14 @@
     <!-- Чистий title — без "Unity WebGL Player" -->
     <title>Frontier Heroes  Deck of Fate</title>
 
-    <!-- Базовий viewport -->
+    <!-- Базовий viewport; JS-добивка нижче поставить його лише якщо відсутній -->
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover" />
 
     <link rel="shortcut icon" href="TemplateData/favicon.ico" />
     <link rel="stylesheet" href="TemplateData/style.css" />
 
     <style>
-      /* Оверлей для iOS у landscape */
+      /* Оверлей, що просить повернути телефон вертикально (включається JS-ом) */
       #orientation-overlay {
         position: fixed; inset: 0; display: none;
         align-items: center; justify-content: center;
@@ -45,8 +45,8 @@
       </div>
     </div>
 
-    <!-- Оверлей для iOS у landscape -->
-    <div id="orientation-overlay">Please rotate your device back to portrait 📱</div>
+    <!-- Оверлей для ландшафтної орієнтації на мобільних (Android + iOS) -->
+    <div id="orientation-overlay">Please turn your phone vertically 📱</div>
 
     <script>
       var container        = document.querySelector("#unity-container");
@@ -90,6 +90,7 @@
 
       // Mobile viewport + класи
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Додати meta viewport лише якщо його не вистачає (щоб уникнути дублю)
         if (!document.querySelector('meta[name="viewport"]')) {
           var meta = document.createElement("meta");
           meta.name    = "viewport";
@@ -101,6 +102,54 @@
       }
 
 
+      // === Pause bridge helper ===
+      function setPausedInUnity(paused) {
+        if (window.unityInstance) {
+          // GameObject name must be "PauseBridge", method accepts "1"/"0"
+          window.unityInstance.SendMessage("PauseBridge", "SetPausedFromJS", paused ? "1" : "0");
+        }
+      }
+
+      // === Helpers for platform/orientation ===
+      function isMobile() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
+      function isPortrait() { return window.innerHeight >= window.innerWidth; }
+
+      // Портрет-лок (best-effort) — не заважає overlay-логіці
+      function tryLockPortrait() {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock("portrait").catch(function(){});
+        }
+      }
+
+      // Показ/приховування overlay + постановка/зняття паузи
+      function updateOrientationOverlay() {
+        var overlay = document.getElementById("orientation-overlay");
+        var show = isMobile() && !isPortrait();
+        overlay.style.display = show ? "flex" : "none";
+        setPausedInUnity(show);
+      }
+
+      // Масштабування під екран (твоя логіка збережена)
+      function resizeCanvas() {
+        var maxWidth = window.innerWidth;
+        var maxHeight = window.innerHeight;
+        var gameAspect = 1080 / 1920;
+        var screenAspect = maxWidth / maxHeight;
+
+        var width, height;
+        if (screenAspect > gameAspect) {
+          // Екран ширший - підганяємо по висоті
+          height = maxHeight;
+          width = height * gameAspect;
+        } else {
+          // Екран вищий - підганяємо по ширині
+          width = maxWidth;
+          height = width / gameAspect;
+        }
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+      }
+
       // Loader
       loadingBar.style.display = "block";
       var script = document.createElement("script");
@@ -111,56 +160,26 @@
         }).then(function (unityInstance) {
           loadingBar.style.display = "none";
 
+          // Зберігаємо інстанс для SendMessage
+          window.unityInstance = unityInstance;
+
+          // Тільки назва гри у вкладці
           try { document.title = "Frontier Heroes  Deck of Fate"; } catch(e){}
 
-          // Масштабування під екран
-          function resizeCanvas() {
-            var maxWidth = window.innerWidth;
-            var maxHeight = window.innerHeight;
-            var gameAspect = 1080 / 1920;
-            var screenAspect = maxWidth / maxHeight;
+          // Стартові виклики
+          tryLockPortrait();
+          resizeCanvas();
+          updateOrientationOverlay();
 
-            var width, height;
-            if (screenAspect > gameAspect) {
-              height = maxHeight;
-              width = height * gameAspect;
-            } else {
-              width = maxWidth;
-              height = width / gameAspect;
-            }
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-          }
-
-          // Orientation
-          function isIOS() {
-            return /iPad|iPhone|iPod/.test(navigator.userAgent);
-          }
-
-          function tryLockPortrait() {
-            if (!isIOS() && screen.orientation && screen.orientation.lock) {
-              screen.orientation.lock("portrait").catch(function(){});
-            }
-          }
-
-          function updateOrientationOverlay() {
-            var overlay = document.getElementById("orientation-overlay");
-            var isPortrait = window.innerHeight >= window.innerWidth;
-            overlay.style.display = (isIOS() && !isPortrait) ? "flex" : "none";
-          }
-
-          function onResizeAll() {
+          // Події
+          window.addEventListener('resize', function(){
             resizeCanvas();
             updateOrientationOverlay();
-          }
-
-          tryLockPortrait();
-          onResizeAll();
-
-          window.addEventListener('resize', onResizeAll);
+          });
           window.addEventListener('orientationchange', function(){
             tryLockPortrait();
-            onResizeAll();
+            resizeCanvas();
+            updateOrientationOverlay();
           });
 
           fullscreenButton.onclick = function () {
@@ -172,7 +191,7 @@
       };
       document.body.appendChild(script);
 
-      // Service Worker
+      // Service Worker для офлайн-режиму
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
           navigator.serviceWorker.register("sw.js").catch(function(err){
