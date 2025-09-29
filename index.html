@@ -6,14 +6,14 @@
     <!-- Чистий title — без "Unity WebGL Player" -->
     <title>Frontier Heroes  Deck of Fate</title>
 
-    <!-- Базовий viewport; JS-добивка нижче поставить його лише якщо відсутній -->
+    <!-- Базовий viewport -->
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover" />
 
     <link rel="shortcut icon" href="TemplateData/favicon.ico" />
     <link rel="stylesheet" href="TemplateData/style.css" />
 
     <style>
-      /* Оверлей, що просить повернути телефон вертикально (включається JS-ом) */
+      /* Оверлей для iOS у landscape */
       #orientation-overlay {
         position: fixed; inset: 0; display: none;
         align-items: center; justify-content: center;
@@ -45,8 +45,8 @@
       </div>
     </div>
 
-    <!-- Оверлей для ландшафтної орієнтації на мобільних -->
-    <div id="orientation-overlay">Будь ласка, поверніть телефон вертикально 📱</div>
+    <!-- Оверлей для iOS у landscape -->
+    <div id="orientation-overlay">Please rotate your device back to portrait 📱</div>
 
     <script>
       var container        = document.querySelector("#unity-container");
@@ -90,7 +90,6 @@
 
       // Mobile viewport + класи
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Додати meta viewport лише якщо його не вистачає (щоб уникнути дублю)
         if (!document.querySelector('meta[name="viewport"]')) {
           var meta = document.createElement("meta");
           meta.name    = "viewport";
@@ -112,10 +111,9 @@
         }).then(function (unityInstance) {
           loadingBar.style.display = "none";
 
-          // Тільки назва гри у вкладці
           try { document.title = "Frontier Heroes  Deck of Fate"; } catch(e){}
 
-          // Масштабування під екран (твоя логіка збережена)
+          // Масштабування під екран
           function resizeCanvas() {
             var maxWidth = window.innerWidth;
             var maxHeight = window.innerHeight;
@@ -124,11 +122,9 @@
 
             var width, height;
             if (screenAspect > gameAspect) {
-              // Екран ширший - підганяємо по висоті
               height = maxHeight;
               width = height * gameAspect;
             } else {
-              // Екран вищий - підганяємо по ширині
               width = maxWidth;
               height = width / gameAspect;
             }
@@ -136,18 +132,21 @@
             canvas.style.height = height + 'px';
           }
 
-          // Портрет-лок (best-effort) + оверлей
+          // Orientation
+          function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent);
+          }
+
           function tryLockPortrait() {
-            if (screen.orientation && screen.orientation.lock) {
+            if (!isIOS() && screen.orientation && screen.orientation.lock) {
               screen.orientation.lock("portrait").catch(function(){});
             }
           }
+
           function updateOrientationOverlay() {
             var overlay = document.getElementById("orientation-overlay");
             var isPortrait = window.innerHeight >= window.innerWidth;
-            // На мобільних у landscape показуємо оверлей
-            var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            overlay.style.display = (isMobile && !isPortrait) ? "flex" : "none";
+            overlay.style.display = (isIOS() && !isPortrait) ? "flex" : "none";
           }
 
           function onResizeAll() {
@@ -155,11 +154,9 @@
             updateOrientationOverlay();
           }
 
-          // Стартові виклики
           tryLockPortrait();
           onResizeAll();
 
-          // Події
           window.addEventListener('resize', onResizeAll);
           window.addEventListener('orientationchange', function(){
             tryLockPortrait();
@@ -175,7 +172,7 @@
       };
       document.body.appendChild(script);
 
-      // Service Worker для офлайн-режиму
+      // Service Worker
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
           navigator.serviceWorker.register("sw.js").catch(function(err){
