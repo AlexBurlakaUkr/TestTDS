@@ -3,9 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Unity WebGL Player | Frontier Heroes  Deck of Fate</title>
+    <!-- Чистий title — без "Unity WebGL Player" -->
+    <title>Frontier Heroes  Deck of Fate</title>
+
+    <!-- Базовий viewport; JS-добивка нижче поставить його лише якщо відсутній -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover" />
+
     <link rel="shortcut icon" href="TemplateData/favicon.ico" />
     <link rel="stylesheet" href="TemplateData/style.css" />
+
+    <style>
+      /* Оверлей, що просить повернути телефон вертикально (включається JS-ом) */
+      #orientation-overlay {
+        position: fixed; inset: 0; display: none;
+        align-items: center; justify-content: center;
+        background: #000; color: #fff; z-index: 9999;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-size: 18px; text-align: center; padding: 24px;
+      }
+    </style>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -28,6 +44,9 @@
         <div id="unity-build-title">Frontier Heroes  Deck of Fate</div>
       </div>
     </div>
+
+    <!-- Оверлей для ландшафтної орієнтації на мобільних -->
+    <div id="orientation-overlay">Будь ласка, поверніть телефон вертикально 📱</div>
 
     <script>
       var container        = document.querySelector("#unity-container");
@@ -59,9 +78,9 @@
       var buildUrl  = "Build";
       var loaderUrl = buildUrl + "/WebGl.loader.js";
       var config = {
-        dataUrl:           buildUrl + "/WebGl.data",
-        frameworkUrl:      buildUrl + "/WebGl.framework.js",
-        codeUrl:           buildUrl + "/WebGl.wasm",
+        dataUrl:           buildUrl + "/WebGl.data.unityweb",
+        frameworkUrl:      buildUrl + "/WebGl.framework.js.unityweb",
+        codeUrl:           buildUrl + "/WebGl.wasm.unityweb",
         streamingAssetsUrl: buildUrl + "/StreamingAssets",
         companyName:        "AtomicPlayApps",
         productName:        "Frontier Heroes  Deck of Fate",
@@ -69,20 +88,22 @@
         showBanner:         unityShowBanner,
       };
 
-      // Mobile viewport meta + classes
+      // Mobile viewport + класи
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        var meta = document.createElement("meta");
-        meta.name    = "viewport";
-        meta.content = "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover";
-        document.getElementsByTagName("head")[0].appendChild(meta);
-
+        // Додати meta viewport лише якщо його не вистачає (щоб уникнути дублю)
+        if (!document.querySelector('meta[name="viewport"]')) {
+          var meta = document.createElement("meta");
+          meta.name    = "viewport";
+          meta.content = "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover";
+          document.head.appendChild(meta);
+        }
         container.className = "unity-mobile";
         canvas.className    = "unity-mobile";
       }
 
 
+      // Loader
       loadingBar.style.display = "block";
-      
       var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = function () {
@@ -90,16 +111,18 @@
           progressBarFull.style.width = (100 * progress) + "%";
         }).then(function (unityInstance) {
           loadingBar.style.display = "none";
-          
-          // Простое масштабирование для центрирования
+
+          // Тільки назва гри у вкладці
+          try { document.title = "Frontier Heroes  Deck of Fate"; } catch(e){}
+
+          // Масштабування під екран (твоя логіка збережена)
           function resizeCanvas() {
             var maxWidth = window.innerWidth;
             var maxHeight = window.innerHeight;
             var gameAspect = 1080 / 1920;
             var screenAspect = maxWidth / maxHeight;
-            
+
             var width, height;
-            
             if (screenAspect > gameAspect) {
               // Екран ширший - підганяємо по висоті
               height = maxHeight;
@@ -109,14 +132,40 @@
               width = maxWidth;
               height = width / gameAspect;
             }
-            
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
           }
-          
-          resizeCanvas();
-          window.addEventListener('resize', resizeCanvas);
-          
+
+          // Портрет-лок (best-effort) + оверлей
+          function tryLockPortrait() {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock("portrait").catch(function(){});
+            }
+          }
+          function updateOrientationOverlay() {
+            var overlay = document.getElementById("orientation-overlay");
+            var isPortrait = window.innerHeight >= window.innerWidth;
+            // На мобільних у landscape показуємо оверлей
+            var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            overlay.style.display = (isMobile && !isPortrait) ? "flex" : "none";
+          }
+
+          function onResizeAll() {
+            resizeCanvas();
+            updateOrientationOverlay();
+          }
+
+          // Стартові виклики
+          tryLockPortrait();
+          onResizeAll();
+
+          // Події
+          window.addEventListener('resize', onResizeAll);
+          window.addEventListener('orientationchange', function(){
+            tryLockPortrait();
+            onResizeAll();
+          });
+
           fullscreenButton.onclick = function () {
             unityInstance.SetFullscreen(1);
           };
@@ -125,6 +174,15 @@
         });
       };
       document.body.appendChild(script);
+
+      // Service Worker для офлайн-режиму
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function(err){
+            console.log("SW registration failed:", err);
+          });
+        });
+      }
     </script>
   </body>
 </html>
